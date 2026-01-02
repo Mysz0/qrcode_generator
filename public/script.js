@@ -1,434 +1,229 @@
-let token = null;
+// Import Firebase modules
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import { getFirestore, collection, addDoc, query, where, getDocs, deleteDoc, doc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyDl1NfXjShEbrvkwafbW8bGJyAp89ceVR8",
+  authDomain: "qrcode-generator-16535.firebaseapp.com",
+  projectId: "qrcode-generator-16535",
+  storageBucket: "qrcode-generator-16535.firebasestorage.app",
+  messagingSenderId: "448969259756",
+  appId: "1:448969259756:web:a11fc0aafbcaebca0683c9"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+const db = getFirestore(app);
+
+let currentUser = null;
 let selectedCodes = [];
 
-function showRegister() {
-    const registerForm = document.getElementById('registerForm');
-    const loginForm = document.getElementById('loginForm');
-    const qrGenerator = document.querySelector('.container'); 
-    
-    if (registerForm.style.display === 'none' || registerForm.style.display === '') {
-        
-        registerForm.style.display = 'block';
-        loginForm.style.display = 'none';
-        qrGenerator.style.display = 'none'; 
-    } else {
-        
-        registerForm.style.display = 'none';
-        qrGenerator.style.display = 'block'; 
-    }
-    
-    document.getElementById('forgotPasswordForm').style.display = 'none';
-    document.getElementById('errorBox').style.display = 'none';
-}
+// Auth state observer
+onAuthStateChanged(auth, (user) => {
+  currentUser = user;
+  updateUI();
+  if (user) {
+    displaySavedQRCodes();
+  }
+});
 
-function showLogin() {
-    const loginForm = document.getElementById('loginForm');
-    const registerForm = document.getElementById('registerForm');
-    const qrGenerator = document.querySelector('.container'); 
-    
-    if (loginForm.style.display === 'none' || loginForm.style.display === '') {
-        
-        loginForm.style.display = 'block';
-        registerForm.style.display = 'none';
-        qrGenerator.style.display = 'none'; 
-    } else {
-        
-        loginForm.style.display = 'none';
-        qrGenerator.style.display = 'block'; 
-    }
+// Google login
+window.loginWithGoogle = async () => {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    currentUser = result.user;
+    showError('Logged in successfully!', 'success');
+    updateUI();
+    displaySavedQRCodes();
+  } catch (error) {
+    showError('Login failed: ' + error.message);
+  }
+};
 
-    document.getElementById('forgotPasswordForm').style.display = 'none';
-    document.getElementById('errorBox').style.display = 'none';
-}
+// Logout
+window.logout = async () => {
+  try {
+    await signOut(auth);
+    currentUser = null;
+    updateUI();
+    document.getElementById('qrCodeList').innerHTML = '';
+    showError('Logged out successfully!', 'success');
+  } catch (error) {
+    showError('Logout failed: ' + error.message);
+  }
+};
 
-function showForgotPassword() {
-    document.getElementById('registerForm').style.display = 'none';
-    document.getElementById('loginForm').style.display = 'none';
-    document.getElementById('forgotPasswordForm').style.display = 'block'; 
-    document.getElementById('errorBox').style.display = 'none'; 
-}
-
-function register() {
-    const email = document.getElementById('registerEmail').value;
-    const password = document.getElementById('registerPassword').value;
-
-    fetch('/api/users/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === 'success') {
-            alert('Registration complete. Check your email to activate your account.');
-            showLogin(); 
-        } else {
-            showError('Wystąpił problem: ' + data.message);
-        }
-    })
-    .catch(error => {
-        showError('Błąd przy rejestracji: ' + error.message);
-    });
-}
-
-function login() {
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    const rememberMe = document.getElementById('rememberMe').checked;
-
-    fetch('/api/users/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, rememberMe })
-    })
-    .then(res => {
-        if (!res.ok) {
-            return res.json().then(errorData => {
-                if (errorData.message === 'Account not activated') {
-                    showError('Your account has not been activated yet. Please check your e-mail.');
-                } else {
-                    throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
-                }
-            });
-        }
-        return res.json();
-    })
-    .then(data => {
-        token = data.token;
-        if (rememberMe) {
-            localStorage.setItem('authToken', token); 
-            sessionStorage.removeItem('authToken'); 
-        } else {
-            sessionStorage.setItem('authToken', token); 
-            localStorage.removeItem('authToken'); 
-        }
-        updateUI();
-
-        
-        const qrGenerator = document.querySelector('.container'); 
-        qrGenerator.style.display = 'block'; 
-
-        document.getElementById('loginForm').style.display = 'none';
-    })
-    .catch(error => {
-        showError('Log in error: ' + error.message);
-    });
-}
-
-function forgotPassword() {
-    const email = document.getElementById('forgotPasswordEmail').value;
-
-    if (!email) {
-        alert('Please provide an e-mail address.');
-        return;
-    }
-
-    fetch('/api/users/forgotPassword', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === 'success') {
-            alert('Password reset link has been sent');
-        } else {
-            alert('Error occured: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error occured while sending password reset link');
-    });
-}
-
-function generateQRCode() {
-    let link = document.getElementById('link').value;
-    let title = ''; 
-
-    if (!link) {
-        return;
-    }
-
-  
-    if (!/^https?:\/\//i.test(link)) {
-        link = 'http://' + link;
-    }
-
-    
-    try {
-        const urlParts = new URL(link);
-        title = urlParts.hostname; 
-    } catch (error) {
-        title = 'QR Code'; 
-    }
-    
-    const qrcodeElement = document.getElementById('qrcode');
-    
-    const qr = qrcode(0, 'L');
-    qr.addData(link);
-    qr.make();
-    
-    const qrImageTag = qr.createImgTag();
-    qrcodeElement.innerHTML = qrImageTag;
-
-   
-    const imgElement = qrcodeElement.querySelector('img');
-    const qrImageData = imgElement ? imgElement.src : '';
-
-    
-    saveQRCode(link, title, qrImageData);
-}
-
-function saveQRCode(link, title, qrImageData) {
-    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-    
-    fetch('/api/qr-codes/save_qr', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ link, title, qrImageData })
-    })
-    .then(res => {
-        if (!res.ok) {
-            return res.json().then(errorData => {
-                throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
-            });
-        }
-        return res.json();
-    })
-    .then(data => {
-        console.log('Qr code saved:', data);
-        displaySavedQRCodes(); 
-    })
-    .catch(error => {
-        console.error('Error saving qr code:', error);
-    });
-}
-
-function logout() {
-    token = null;
-    localStorage.removeItem('authToken'); 
-    sessionStorage.removeItem('authToken'); 
-    updateUI(); 
-}
-
+// Update UI based on auth state
 function updateUI() {
-    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-    const isLoggedIn = token !== null;
+  const loginButton = document.getElementById('loginButton');
+  const logoutButton = document.getElementById('logoutButton');
+  const userInfo = document.getElementById('userInfo');
 
-    document.getElementById('showRegisterButton').style.display = isLoggedIn ? 'none' : 'block';
-    document.getElementById('showLoginButton').style.display = isLoggedIn ? 'none' : 'block';
-    document.getElementById('logoutButton').style.display = isLoggedIn ? 'block' : 'none';
-
-    if (isLoggedIn) {
-        displaySavedQRCodes(); 
-    } else {
-        document.getElementById('qrCodeList').innerHTML = ''; 
-    }
+  if (currentUser) {
+    loginButton.style.display = 'none';
+    logoutButton.style.display = 'block';
+    userInfo.style.display = 'inline';
+    userInfo.textContent = `Hello, ${currentUser.displayName || currentUser.email}`;
+  } else {
+    loginButton.style.display = 'block';
+    logoutButton.style.display = 'none';
+    userInfo.style.display = 'none';
+  }
 }
 
-function deleteQRCode(id) {
-    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+// Generate QR Code
+window.generateQRCode = async () => {
+  let link = document.getElementById('link').value;
 
-    fetch(`/api/qr-codes/delete/${id}`, {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        }
-    })
-    .then(res => {
-        if (!res.ok) {
-            if (res.status === 401) {
-                alert('Token expired. Please log in again.');
-                window.location.href = '/login'; 
-            } else {
-                return res.json().then(errorData => {
-                    throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
-                });
-            }
-        }
-        return res.json();
-    })
-    .then(data => {
-        console.log('Qr code has been deleted:', data);
-        
-        
-        const qrCodeItem = document.getElementById(`qrCode-${id}`);
-        if (qrCodeItem) {
-            qrCodeItem.remove();
-        }
+  if (!link) {
+    showError('Please enter a link');
+    return;
+  }
 
-        
-        
-    })
-    .catch(error => {
-        console.error('Error while deleting qr code:', error);
+  if (!currentUser) {
+    showError('Please log in to save QR codes');
+    return;
+  }
+
+  // Add http:// if missing
+  if (!/^https?:\/\//i.test(link)) {
+    link = 'http://' + link;
+  }
+
+  // Generate title from URL
+  let title = '';
+  try {
+    const urlParts = new URL(link);
+    title = urlParts.hostname;
+  } catch (error) {
+    title = 'QR Code';
+  }
+
+  const qrcodeElement = document.getElementById('qrcode');
+  const qr = qrcode(0, 'L');
+  qr.addData(link);
+  qr.make();
+
+  const qrImageTag = qr.createImgTag();
+  qrcodeElement.innerHTML = qrImageTag;
+
+  const imgElement = qrcodeElement.querySelector('img');
+  const qrImageData = imgElement ? imgElement.src : '';
+
+  // Save to Firestore
+  await saveQRCode(link, title, qrImageData);
+};
+
+// Save QR code to Firestore
+async function saveQRCode(link, title, qrImageData) {
+  try {
+    const docRef = await addDoc(collection(db, 'qrcodes'), {
+      userId: currentUser.uid,
+      link: link,
+      title: title,
+      qr_image: qrImageData,
+      createdAt: serverTimestamp()
     });
+    console.log('QR code saved with ID:', docRef.id);
+    showError('QR code saved!', 'success');
+    displaySavedQRCodes();
+  } catch (error) {
+    console.error('Error saving QR code:', error);
+    showError('Error saving QR code: ' + error.message);
+  }
 }
 
-function displaySavedQRCodes() {
-    const qrCodeList = document.getElementById('qrCodeList');
-    qrCodeList.innerHTML = ''; 
+// Display saved QR codes
+async function displaySavedQRCodes() {
+  const qrCodeList = document.getElementById('qrCodeList');
+  qrCodeList.innerHTML = '';
 
-    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-    if (!token) {
-        showError('Token not found. Please log in.');
-        return;
-    }
+  if (!currentUser) {
+    return;
+  }
 
-    fetch('/api/qr-codes/list', {
-        headers: { 'Authorization': `Bearer ${token}` }
-    })
-    .then(res => res.json())
-    .then(codes => {
-        codes.forEach(code => {
-            const qrCodeItem = document.createElement('div');
-            qrCodeItem.className = 'qr-code-item';
-            qrCodeItem.id = `qrCode-${code.id}`; 
-            qrCodeItem.innerHTML = `
-                <img src="${code.qr_image}" alt="QR Code">
-                <p>${code.title || 'No title'}</p>
-            `;
+  try {
+    const q = query(collection(db, 'qrcodes'), where('userId', '==', currentUser.uid));
+    const querySnapshot = await getDocs(q);
 
-           
-            qrCodeItem.addEventListener('click', () => toggleQRCodeSelection(code.id));
+    querySnapshot.forEach((docSnapshot) => {
+      const code = docSnapshot.data();
+      const qrCodeItem = document.createElement('div');
+      qrCodeItem.className = 'qr-code-item';
+      qrCodeItem.id = `qrCode-${docSnapshot.id}`;
+      qrCodeItem.innerHTML = `
+        <img src="${code.qr_image}" alt="QR Code">
+        <p>${code.title || 'No title'}</p>
+      `;
 
-            qrCodeList.appendChild(qrCodeItem);
-        });
-    })
-    .catch(error => {
-        console.error('Error fetching qr codes:', error);
+      qrCodeItem.addEventListener('click', () => toggleQRCodeSelection(docSnapshot.id));
+      qrCodeList.appendChild(qrCodeItem);
     });
+  } catch (error) {
+    console.error('Error loading QR codes:', error);
+    showError('Error loading QR codes: ' + error.message);
+  }
 }
 
+// Toggle QR code selection
 function toggleQRCodeSelection(id) {
-    const qrCodeItem = document.getElementById(`qrCode-${id}`);
-    
-    
-    if (selectedCodes.includes(id)) {
-        selectedCodes = selectedCodes.filter(codeId => codeId !== id);
-        qrCodeItem.classList.remove('selected');
-    } else {
-        selectedCodes.push(id);
-        qrCodeItem.classList.add('selected');
+  const qrCodeItem = document.getElementById(`qrCode-${id}`);
+  const qrActions = document.querySelector('.qr-actions');
+
+  if (selectedCodes.includes(id)) {
+    selectedCodes = selectedCodes.filter(code => code !== id);
+    qrCodeItem.classList.remove('selected');
+  } else {
+    selectedCodes.push(id);
+    qrCodeItem.classList.add('selected');
+  }
+
+  qrActions.style.display = selectedCodes.length > 0 ? 'block' : 'none';
+}
+
+// Delete selected QR codes
+window.deleteSelected = async () => {
+  if (selectedCodes.length === 0) {
+    showError('No QR codes selected');
+    return;
+  }
+
+  if (!confirm(`Delete ${selectedCodes.length} QR code(s)?`)) {
+    return;
+  }
+
+  try {
+    for (const id of selectedCodes) {
+      await deleteDoc(doc(db, 'qrcodes', id));
+      const qrCodeItem = document.getElementById(`qrCode-${id}`);
+      if (qrCodeItem) {
+        qrCodeItem.remove();
+      }
     }
+    selectedCodes = [];
+    document.querySelector('.qr-actions').style.display = 'none';
+    showError('QR codes deleted!', 'success');
+  } catch (error) {
+    console.error('Error deleting QR codes:', error);
+    showError('Error deleting QR codes: ' + error.message);
+  }
+};
 
+// Show error/success message
+function showError(message, type = 'error') {
+  const errorBox = document.getElementById('errorBox');
+  errorBox.textContent = message;
+  errorBox.style.display = 'block';
+  errorBox.style.backgroundColor = type === 'success' ? '#4CAF50' : '#f44336';
 
-    const qrActions = document.querySelector('.qr-actions');
-    if (selectedCodes.length > 0) {
-        qrActions.style.display = 'block';
-    } else {
-        qrActions.style.display = 'none';
-    }
+  setTimeout(() => {
+    errorBox.style.display = 'none';
+  }, 5000);
 }
 
-function deleteSelected() {
-    selectedCodes.forEach(id => {
-        deleteQRCode(id);
-    });
-    selectedCodes = []; 
-    document.querySelector('.qr-actions').style.display = 'none'; 
-}
-
-function requestPasswordReset() {
-    const email = document.getElementById('forgotPasswordEmail').value;
-
-    if (!email) {
-        showError('Please provide an e-mail address.');
-        return;
-    }
-
-    fetch('/api/users/forgotPassword', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === 'success') {
-            alert('Link has been sent. Please check your e-mail and spam inbox.');
-            showLogin(); 
-        } else {
-            showError('An error occured: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showError('There was an error while sending password reset link.');
-    });
-}
-
-function changePassword() {
-    const newPassword = document.getElementById('newPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-
-    if (newPassword !== confirmPassword) {
-        showError('Passwords do not match.');
-        return;
-    }
-
-    fetch(`/api/users/resetPassword/${token}`, {
-        method: 'PATCH',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            password: newPassword
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            alert('Password has been succesfully changed.');
-            window.location.href = '/'; 
-        } else {
-            document.getElementById('errorBox').style.display = 'block';
-            document.getElementById('errorBox').innerText = data.message;
-        }
-    })
-    .catch(error => {
-        document.getElementById('errorBox').style.display = 'block';
-        document.getElementById('errorBox').innerText = 'There was an error with changing the password.';
-    });
-}
-
-
-function checkForResetToken() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    if (token) {
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('changePasswordForm').style.display = 'block';
-    }
-}
-
-function showError(message) {
-    const errorBox = document.getElementById('errorBox');
-    errorBox.innerText = message;
-    errorBox.style.display = 'block';
-    errorBox.style.opacity = '1'; 
-    errorBox.style.transition = 'opacity 1s ease'; 
-
-    
-    setTimeout(() => {
-        errorBox.style.opacity = '0'; 
-      
-        setTimeout(() => {
-            errorBox.style.display = 'none';
-        }, 1000);
-    }, 3000); 
-}
-
-
-
-window.onload = updateUI;
+// Initialize on load
+updateUI();

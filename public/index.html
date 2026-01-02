@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,52 +10,14 @@
 <body>
     <div id="particles-js"></div>
     
-    
     <div class="menu">
-        <button id="showRegisterButton" onclick="showRegister()">Sign Up</button>
-        <button id="showLoginButton" onclick="showLogin()">Log In</button>
+        <button id="loginButton" style="display:none;" onclick="loginWithGoogle()">Sign in with Google</button>
         <button id="logoutButton" style="display:none;" onclick="logout()">Log Out</button>
+        <span id="userInfo" style="display:none; color: white; margin-left: 20px;"></span>
     </div>
 
-   
     <div id="errorBox"></div>
 
-  
-    <div id="registerForm" class="auth-form" style="display:none;">
-        <h2>Rejestracja</h2>
-        <input type="email" id="registerEmail" class="auth-input" placeholder="Email">
-        <input type="password" id="registerPassword" class="auth-input" placeholder="Hasło">
-        <button class="auth-button" onclick="register()">Sign Up</button>
-    </div>
-
-    
-    <div id="loginForm" class="auth-form" style="display:none;">
-        <h2>Log In</h2>
-        <input type="email" id="loginEmail" class="auth-input" placeholder="Email">
-        <input type="password" id="loginPassword" class="auth-input" placeholder="Hasło">
-        <label class="remember-me-label">
-            <input type="checkbox" id="rememberMe" class="remember-me-checkbox"> Remember me
-        </label>
-        <button class="auth-button" onclick="login()">Log In</button>
-        <button class="auth-button" onclick="showForgotPassword()">Forgot the password</button>
-    </div>
-
-    
-    <div id="forgotPasswordForm" class="auth-form" style="display:none;">
-        <h2>Password reset</h2>
-        <input type="email" id="forgotPasswordEmail" class="auth-input" placeholder="Podaj email">
-        <button class="auth-button" onclick="forgotPassword()">Reset Password</button>
-    </div>
-   
-    <div id="changePasswordForm" class="auth-form" style="display:none;">
-        <h2>Password Reset</h2>
-        <input type="password" id="newPassword" class="auth-input" placeholder="Nowe hasło">
-        <input type="password" id="confirmPassword" class="auth-input" placeholder="Potwierdź nowe hasło">
-        <button class="auth-button" onclick="changePassword()">Reset Password</button>
-        <button class="auth-button" onclick="showLogin()">Cancel</button>
-    </div>
-
-   
     <div class="container">
         <h1>QR Code Generator</h1>
         <div class="qr-generation">
@@ -65,19 +27,15 @@
         <div id="qrcode"></div>
     </div>
 
-    <!-- Akcje dla QR kodów (widoczne po zaznaczeniu) -->
     <div class="qr-actions" style="display:none;">
-        <!-- <button id="shareButton" class="selectButton" onclick="shareSelected()">Udostępnij</button> -->
         <button id="deleteButton" class="selectButton" onclick="deleteSelected()">Delete</button>
     </div>
 
-    
     <div id="qrCodeList"></div>
 
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tsparticles@2.1.1/tsparticles.min.js"></script>
     <script src="particles.js"></script>
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>
