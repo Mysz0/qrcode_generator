@@ -84,11 +84,6 @@ window.generateQRCode = async () => {
     return;
   }
 
-  if (!currentUser) {
-    showError('Please log in to save QR codes');
-    return;
-  }
-
   // Add http:// if missing
   if (!/^https?:\/\//i.test(link)) {
     link = 'http://' + link;
@@ -110,12 +105,17 @@ window.generateQRCode = async () => {
 
   const qrImageTag = qr.createImgTag();
   qrcodeElement.innerHTML = qrImageTag;
+  qrcodeElement.style.display = 'inline-block';
 
   const imgElement = qrcodeElement.querySelector('img');
   const qrImageData = imgElement ? imgElement.src : '';
 
-  // Save to Firestore
-  await saveQRCode(link, title, qrImageData);
+  // Save to Firestore only if user is logged in
+  if (currentUser) {
+    await saveQRCode(link, title, qrImageData);
+  } else {
+    showError('QR code generated! Log in to save it.', 'success');
+  }
 };
 
 // Save QR code to Firestore
