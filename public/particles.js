@@ -1,4 +1,7 @@
-particlesJS('particles-js', {
+// Ensure particles loads after DOM is ready and stays loaded
+window.addEventListener('load', function() {
+  if (typeof particlesJS !== 'undefined') {
+    particlesJS('particles-js', {
     "particles": {
       "number": {
         "value": 150,
@@ -83,3 +86,5 @@ particlesJS('particles-js', {
       });
   });
   
+  } // End of particlesJS check
+}); // End of window load event
