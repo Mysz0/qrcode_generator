@@ -98,7 +98,13 @@ window.generateQRCode = async () => {
     title = 'QR Code';
   }
 
+
   const qrcodeElement = document.getElementById('qrcode');
+  // Clear and hide before generating
+  qrcodeElement.innerHTML = '';
+  qrcodeElement.style.display = 'none';
+
+  // Generate QR code
   const qr = qrcode(0, 'L');
   qr.addData(link);
   qr.make();
@@ -225,5 +231,13 @@ function showError(message, type = 'error') {
   }, 5000);
 }
 
-// Initialize on load
-updateUI();
+
+// Hide QR code box on load
+window.addEventListener('DOMContentLoaded', () => {
+  const qrcodeElement = document.getElementById('qrcode');
+  if (qrcodeElement) {
+    qrcodeElement.innerHTML = '';
+    qrcodeElement.style.display = 'none';
+  }
+  updateUI();
+});
