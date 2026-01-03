@@ -21,6 +21,8 @@ const db = getFirestore(app);
 
 let currentUser = null;
 let selectedCodes = [];
+let codesFetchToken = 0;
+let errorHideTimeout;
 
 // Auth state observer
 onAuthStateChanged(auth, (user) => {
@@ -146,15 +148,25 @@ async function saveQRCode(link, title, qrImageData) {
 // Display saved QR codes
 async function displaySavedQRCodes() {
   const qrCodeList = document.getElementById('qrCodeList');
+  const currentRunToken = ++codesFetchToken;
   qrCodeList.innerHTML = '';
 
   if (!currentUser) {
+    selectedCodes = [];
+    const qrActions = document.querySelector('.qr-actions');
+    if (qrActions) {
+      qrActions.style.display = 'none';
+    }
     return;
   }
 
   try {
     const q = query(collection(db, 'qrcodes'), where('userId', '==', currentUser.uid));
     const querySnapshot = await getDocs(q);
+
+    if (currentRunToken !== codesFetchToken) {
+      return;
+    }
 
     querySnapshot.forEach((docSnapshot) => {
       const code = docSnapshot.data();
@@ -222,11 +234,20 @@ window.deleteSelected = async () => {
 // Show error/success message
 function showError(message, type = 'error') {
   const errorBox = document.getElementById('errorBox');
+  if (!errorBox) {
+    return;
+  }
+
   errorBox.textContent = message;
   errorBox.style.display = 'block';
-  errorBox.style.backgroundColor = type === 'success' ? '#4CAF50' : '#f44336';
+  errorBox.classList.remove('notification-success', 'notification-error');
+  errorBox.classList.add(type === 'success' ? 'notification-success' : 'notification-error');
 
-  setTimeout(() => {
+  if (errorHideTimeout) {
+    clearTimeout(errorHideTimeout);
+  }
+
+  errorHideTimeout = setTimeout(() => {
     errorBox.style.display = 'none';
   }, 5000);
 }

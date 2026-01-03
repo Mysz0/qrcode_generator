@@ -303,18 +303,33 @@ body {
     top: 80px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.12);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #eef2ff;
     padding: 15px 25px;
     border-radius: 12px;
     display: none;
     z-index: 1001;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    font-weight: 500;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+    font-weight: 600;
+    letter-spacing: 0.01em;
     animation: slideDown 0.3s ease-out;
+    min-width: 260px;
+    text-align: center;
+}
+
+.notification-success {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.28), rgba(255, 255, 255, 0.06));
+    border-color: rgba(74, 222, 128, 0.45);
+    box-shadow: 0 12px 40px rgba(34, 197, 94, 0.3);
+}
+
+.notification-error {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.32), rgba(255, 255, 255, 0.06));
+    border-color: rgba(239, 68, 68, 0.45);
+    box-shadow: 0 12px 40px rgba(239, 68, 68, 0.3);
 }
 
 @keyframes slideDown {
